@@ -43,6 +43,8 @@ const joinAsSupplierValidation = z.object({
   }),
 });
 
-export const joinAsSupplierValidationSchema = {
+const joinAsSupplierValidationSchema = {
   joinAsSupplierValidation,
 };
+
+export default joinAsSupplierValidationSchema;
