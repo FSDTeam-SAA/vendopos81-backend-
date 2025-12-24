@@ -1,5 +1,6 @@
 import { Router } from "express";
 import auth from "../../middleware/auth";
+import { upload } from "../../middleware/multer.middleware";
 import validateRequest from "../../middleware/validateRequest";
 import { USER_ROLE } from "../user/user.constant";
 import joinAsSupplierController from "./joinAsSupplier.controller";
@@ -10,7 +11,8 @@ const router = Router();
 router.post(
   "/join",
   auth(USER_ROLE.CUSTOMER),
-  validateRequest(joinAsSupplierValidationSchema.joinAsSupplierValidation),
+  upload.array("documents", 5),
+  // validateRequest(joinAsSupplierValidationSchema.joinAsSupplierValidation),
   joinAsSupplierController.joinAsSupplier
 );
 
