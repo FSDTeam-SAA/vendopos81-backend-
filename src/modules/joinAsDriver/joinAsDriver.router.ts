@@ -45,4 +45,11 @@ router.get(
   joinAsDriverController.getSingleDriver
 );
 
+router.delete(
+  "/:id",
+  auth(USER_ROLE.ADMIN),
+  joinAsDriverController.deleteDriver
+);
+
+
 export default router;

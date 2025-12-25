@@ -1,6 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
-import { uploadToCloudinary } from "../../utils/cloudinary";
+import { uploadToCloudinary, deleteFromCloudinary } from "../../utils/cloudinary";
 import sendEmail from "../../utils/sendEmail";
 import sendTemplateMail from "../../utils/sendTamplateMail";
 import { User } from "../user/user.model";
@@ -150,6 +150,32 @@ const getSingleDriver = async (id: string) => {
   return result;
 };
 
+const deleteDriver = async (id: string) => {
+  const driver = await JoinAsDriver.findByIdAndDelete(id);
+  if (!driver) {
+    throw new AppError("Driver application not found", StatusCodes.NOT_FOUND);
+  }
+  
+  await User.findByIdAndDelete(driver.userId, {
+    role: "customer",
+  });
+
+  if(driver.documentUrl?.length) {
+    for(const doc of driver.documentUrl){
+      try {
+        await deleteFromCloudinary(doc.public_id);
+      } catch (error) {
+        console.log("Cloudinary delete failed:", error)
+      }
+    }
+  }
+
+  await JoinAsDriver.findByIdAndDelete(id);
+
+  return { success: true, message: "Driver application deleted successfully" };
+
+}
+
 export const joinAsDriverService = {
   joinAsDriver,
   getMyDriverInfo,
@@ -157,4 +183,5 @@ export const joinAsDriverService = {
   updateDriverStatus,
   suspendDriver,
   getSingleDriver,
+  deleteDriver
 };
