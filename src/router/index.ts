@@ -5,6 +5,8 @@ import contactRouter from "../modules/contact/contact.router";
 import subscriptionRouter from "../modules/subscription/subscription.router";
 import joinAsSupplierRouter from "../modules/joinAsSupplier/joinAsSupplier.router";
 import productRouter from "../modules/product/product.router";
+import joinAsDriverRouter  from "../modules/joinAsDriver/joinAsDriver.router";
+
 
 const router = Router();
 
@@ -28,6 +30,9 @@ const moduleRoutes = [
   {
     path: "/join-as-supplier",
     route: joinAsSupplierRouter,
+  },{
+    path: "/driver", 
+    route: joinAsDriverRouter,
   },
   {
     path: "/product",
