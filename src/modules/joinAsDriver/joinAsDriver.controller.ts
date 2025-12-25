@@ -74,6 +74,16 @@ const getSingleDriver = catchAsync(async (req, res) => {
   });
 });
 
+const deleteDriver = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  await joinAsDriverService.deleteDriver(id);
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Driver deleted successfully",
+  });
+})
+
 export const joinAsDriverController = {
   joinAsDriver,
   getMyDriverInfo,
@@ -81,5 +91,6 @@ export const joinAsDriverController = {
   suspendDriver,
   getAllDrivers,
   getSingleDriver,
-  // ... include others similar to supplier
+  deleteDriver
+  
 };
