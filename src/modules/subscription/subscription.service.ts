@@ -3,6 +3,7 @@ import AppError from "../../errors/AppError";
 import sendEmail from "../../utils/sendEmail";
 import Subscription from "./subscription.model";
 
+
 const createSubscription = async (email: string) => {
   const isSubscribe = await Subscription.findOne({ email });
 
@@ -42,7 +43,11 @@ const getAllSubscriptionFromDb = async (query: Record<string, any>) => {
 const sendBulkEmail = async (subject: string, html: string) => {
   const subscribers = await Subscription.find({}, "email");
 
-  // We use Promise.all to send emails in parallel for better performance
+  if (subscribers.length === 0) {
+    throw new AppError("No subscribers found", StatusCodes.NOT_FOUND);
+  }
+
+  // Back to Promise.all() - sends all emails in parallel
   const emailPromises = subscribers.map((sub) =>
     sendEmail({
       to: sub.email,
@@ -51,9 +56,11 @@ const sendBulkEmail = async (subject: string, html: string) => {
     })
   );
 
-  const results = await Promise.all(emailPromises);
-  return results;
+  await Promise.all(emailPromises);
+  
+  return { totalSent: subscribers.length };
 };
+
 
 const sendIndividualEmail = async (
   id: string,
