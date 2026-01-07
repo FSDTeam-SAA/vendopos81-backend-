@@ -9,13 +9,13 @@ import {
   uploadToCloudinary,
 } from "../../utils/cloudinary";
 import sendEmail from "../../utils/sendEmail";
+import sendTemplateMail from "../../utils/sendTamplateMail";
 import { createToken } from "../../utils/tokenGenerate";
 import verificationCodeTemplate from "../../utils/verificationCodeTemplate";
 import { IUser } from "../user/user.interface";
 import { User } from "../user/user.model";
 import { IJoinAsSupplier, IQuery } from "./joinAsSupplier.interface";
 import JoinAsSupplier from "./joinAsSupplier.model";
-import sendTemplateMail from "../../utils/sendTamplateMail";
 
 const joinAsSupplier = async (
   payload: IJoinAsSupplier,
@@ -66,6 +66,7 @@ const joinAsSupplier = async (
     session.startTransaction();
 
     let user: IUser;
+    let otp: string | null = null;
     let accessToken: string | null = null;
     let tempPassword: string | null = null;
 
@@ -110,8 +111,7 @@ const joinAsSupplier = async (
       }
 
       const password = Math.floor(100000 + Math.random() * 900000).toString();
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
+      otp = Math.floor(100000 + Math.random() * 900000).toString();
       const hashedOtp = await bcrypt.hash(otp, 10);
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -186,14 +186,13 @@ const joinAsSupplier = async (
       await sendEmail({
         to: user.email,
         subject: "Verify your email",
-        html: verificationCodeTemplate("OTP sent"),
+        html: verificationCodeTemplate(otp as string),
       });
     }
 
     return {
       // user,
       supplierRequest: supplierRequest[0],
-      tempPassword,
       accessToken,
     };
   } catch (error) {
@@ -331,7 +330,6 @@ const updateSupplierStatus = async (id: string, status: string) => {
   const resetPasswordURL = `${process.env.RESET_PASSWORD_URL}?token=${accessToken}`;
   const dashboardUrl = `${process.env.DASHBOARD_URL}`;
 
-
   if (status === "approved") {
     await sendEmail({
       to: supplier.email,
@@ -411,7 +409,6 @@ const deleteSupplier = async (id: string) => {
 
   await JoinAsSupplier.findByIdAndDelete(id);
 };
-
 
 const updateSupplierInfo = async (
   id: string,

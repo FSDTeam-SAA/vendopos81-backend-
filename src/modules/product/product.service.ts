@@ -93,6 +93,7 @@ const getMyAddedProducts = async (email: string) => {
   return result;
 };
 
+//! only for approved products
 const getAllProducts = async (query: any) => {
   const {
     search,
@@ -280,6 +281,41 @@ const getAllProducts = async (query: any) => {
   };
 };
 
+const getAllProductForAdmin = async (query: Record<string, any>) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const data = await Product.find()
+    .populate({
+      path: "userId",
+      select: "firstName lastName email",
+    })
+    .populate({
+      path: "categoryId",
+      select: "region",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName logo",
+    })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+  const total = await Product.countDocuments();
+
+  return {
+    meta: {
+      page,
+      limit,
+      total,
+      totalPage: Math.ceil(total / limit),
+    },
+    data,
+  };
+};
+
 const getSingleProduct = async (id: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
@@ -406,6 +442,7 @@ const productService = {
   getMyAddedProducts,
   getSingleProduct,
   getAllProducts,
+  getAllProductForAdmin,
   updateProductStatus,
   updateProduct,
 };
