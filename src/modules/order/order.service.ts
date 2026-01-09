@@ -127,9 +127,9 @@ const createOrder = async (payload: any, email: string) => {
     );
 
     // !Clear cart if needed____________________________
-    // if (payload.orderType === "addToCart") {
-    //   await Cart.deleteMany({ userId: user._id }).session(session);
-    // }
+    if (payload.orderType === "addToCart") {
+      await Cart.deleteMany({ userId: user._id }).session(session);
+    }
 
     await session.commitTransaction();
     session.endSession();
