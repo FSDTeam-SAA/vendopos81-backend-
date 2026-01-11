@@ -44,7 +44,7 @@ export const applySecurity = (app: Application) => {
   //! When you want to allow specific query parameters to be duplicated in the query string, you can use the whitelist option.
   app.use(
     hpp({
-      whitelist: ["products"],
+      whitelist: [],
     })
   );
   app.use(compression());

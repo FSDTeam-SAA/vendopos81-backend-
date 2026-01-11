@@ -1,5 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import AppError from "../../errors/AppError";
+import { buildAggregationPipeline } from "../../lib/aggregationHelpers";
 import generateShopSlug from "../../middleware/generateShopSlug";
 import {
   deleteFromCloudinary,
@@ -286,40 +287,90 @@ const getAllProducts = async (query: any) => {
 };
 
 const getAllProductForAdmin = async (query: Record<string, any>) => {
-  const page = Number(query.page) || 1;
-  const limit = Number(query.limit) || 10;
-  const skip = (page - 1) * limit;
-
-  // 🔴 Only products WITHOUT wholesaleId
-  const filter = {
+  const baseFilter: any = {
     $or: [{ wholesaleId: { $exists: false } }, { wholesaleId: { $size: 0 } }],
   };
 
-  const data = await Product.find(filter)
-    .populate({
-      path: "userId",
-      select: "firstName lastName email",
-    })
-    .populate({
-      path: "categoryId",
-      select: "region",
-    })
-    .populate({
-      path: "supplierId",
-      select: "shopName brandName logo",
-    })
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const pipeline = [
+    ...buildAggregationPipeline(query, {
+      filters: baseFilter,
+      searchFields: ["title", "originCountry", "productName", "productType"],
+      page: Number(query.page) || 1,
+      limit: Number(query.limit) || 10,
+    }),
+    {
+      $lookup: {
+        from: "users",
+        localField: "userId",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    { $unwind: { path: "$user", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "categories",
+        localField: "categoryId",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+    {
+      $lookup: {
+        from: "suppliers",
+        localField: "supplierId",
+        foreignField: "_id",
+        as: "supplier",
+      },
+    },
+    { $unwind: { path: "$supplier", preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        title: 1,
+        slug: 1,
+        shortDescription: 1,
+        description: 1,
+        images: 1,
+        productType: 1,
+        productName: 1,
+        variants: 1,
+        priceFrom: 1,
+        shelfLife: 1,
+        originCountry: 1,
+        isHalal: 1,
+        isOrganic: 1,
+        isFrozen: 1,
+        isKosher: 1,
+        isVendorBrand: 1,
+        seo: 1,
+        averageRating: 1,
+        totalRatings: 1,
+        totalReviews: 1,
+        status: 1,
+        isFeatured: 1,
+        quantity: 1,
+        isAvailable: 1,
+        wholesaleId: 1,
+        addBy: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        user: { _id: 1, firstName: 1, lastName: 1, email: 1 },
+        category: { _id: 1, region: 1 },
+        supplier: { _id: 1, shopName: 1, brandName: 1, logo: 1 },
+      },
+    },
+  ];
 
-  const total = await Product.countDocuments(filter);
+  const data = await Product.aggregate(pipeline);
+  const total = await Product.countDocuments(baseFilter);
 
   return {
     meta: {
-      page,
-      limit,
+      page: Number(query.page) || 1,
+      limit: Number(query.limit) || 10,
       total,
-      totalPage: Math.ceil(total / limit),
+      totalPage: Math.ceil(total / (Number(query.limit) || 10)),
     },
     data,
   };
