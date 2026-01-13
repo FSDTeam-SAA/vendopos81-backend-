@@ -72,7 +72,7 @@ const ProductSchema = new Schema<IProduct>(
     },
     averageRating: { type: Number, default: 0 },
     totalRatings: { type: Number, default: 0 },
-    totalReviews: { type: Number, default: 0 },
+    // totalReviews: { type: Number, default: 0 },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected"],

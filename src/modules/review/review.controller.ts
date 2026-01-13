@@ -14,8 +14,33 @@ const createReview = catchAsync(async (req, res) => {
   });
 });
 
+const getAllReviews = catchAsync(async (req, res) => {
+  const result = await reviewService.getAllReviews();
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "All reviews retrieved successfully",
+    data: result,
+  });
+});
+
+const updateReviewStatus = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  await reviewService.updateReviewStatus(id, status);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Review status updated successfully",
+  });
+});
+
 const reviewController = {
   createReview,
+  getAllReviews,
+  updateReviewStatus,
 };
 
 export default reviewController;
