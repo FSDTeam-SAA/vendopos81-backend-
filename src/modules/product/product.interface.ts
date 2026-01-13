@@ -44,7 +44,7 @@ export interface IProduct {
   seo: ISEO;
   averageRating: number;
   totalRatings: number;
-  totalReviews: number;
+  // totalReviews: number;
   status: "pending" | "approved" | "rejected";
   isFeatured: boolean;
   isPallet: boolean;
