@@ -34,6 +34,7 @@ router.get("/filter", productController.getFilterCategories);
 router.get("/featured", productController.getFeaturedProducts);
 router.get("/top-rated", productController.getTopRatedProducts);
 router.get("/case", productController.getCaseDealsProducts);
+router.get("/related/:id", productController.getRelatedProducts);
 
 router.get(
   "/:id",

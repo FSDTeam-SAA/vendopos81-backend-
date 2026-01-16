@@ -27,21 +27,21 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
     if (!isSupplierExist) {
       throw new AppError(
         "You have not applied to be a supplier",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     }
 
     if (isSupplierExist.status !== "approved") {
       throw new AppError(
         "Your supplier application is not approved yet",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     }
 
     if (isSupplierExist.isSuspended) {
       throw new AppError(
         "Your supplier account has been suspended",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     }
   }
@@ -105,7 +105,7 @@ const createProduct = async (payload: IProduct, files: any, email: string) => {
 
       // 3️⃣ showOnlyDiscount → other variant discount
       const variantWithDiscount = variants.find(
-        (v) => v.discount && v.discount > 0
+        (v) => v.discount && v.discount > 0,
       );
       showOnlyDiscount = variantWithDiscount?.discount ?? 0;
     }
@@ -327,7 +327,7 @@ const getAllProducts = async (query: any) => {
       .map((wh: any) => {
         if (wh.type === "case") {
           const caseItems = wh.caseItems?.filter(
-            (item: any) => item.productId?.toString() === productId
+            (item: any) => item.productId?.toString() === productId,
           );
           if (!caseItems?.length) return null;
           return { ...wh, caseItems };
@@ -337,7 +337,7 @@ const getAllProducts = async (query: any) => {
           const palletItems = wh.palletItems
             ?.map((p: any) => {
               const items = p.items?.filter(
-                (i: any) => i.productId?.toString() === productId
+                (i: any) => i.productId?.toString() === productId,
               );
               if (!items?.length) return null;
               return { ...p, items };
@@ -528,7 +528,7 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
         as: "category",
       },
     },
-    { $unwind: "$category" }
+    { $unwind: "$category" },
   );
 
   // ================= REGION FILTER =================
@@ -550,7 +550,7 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
         as: "supplier",
       },
     },
-    { $unwind: "$supplier" }
+    { $unwind: "$supplier" },
   );
 
   // ================= SUPPLIER BRAND FILTER =================
@@ -617,7 +617,7 @@ const getAllWholeSaleProductForAdmin = async (query: Record<string, any>) => {
 
   // ================= TOTAL COUNT =================
   const totalPipeline = pipeline.filter(
-    (p) => !p.$skip && !p.$limit && !p.$sort
+    (p) => !p.$skip && !p.$limit && !p.$sort,
   );
 
   totalPipeline.push({ $count: "total" });
@@ -661,7 +661,7 @@ const getFeaturedProducts = async () => {
         // ✅ CASE
         if (wh.type === "case") {
           const caseItems = wh.caseItems.filter(
-            (item: any) => item.productId.toString() === productId
+            (item: any) => item.productId.toString() === productId,
           );
 
           if (caseItems.length === 0) return null;
@@ -677,7 +677,7 @@ const getFeaturedProducts = async () => {
           const palletItems = wh.palletItems
             .map((pallet: any) => {
               const items = pallet.items.filter(
-                (item: any) => item.productId.toString() === productId
+                (item: any) => item.productId.toString() === productId,
               );
 
               if (items.length === 0) return null;
@@ -740,7 +740,7 @@ const getFastMovingProducts = async (query: Record<string, any>) => {
   }
 
   const productIds = fastMovingWholesale.fastMovingItems!.map(
-    (item) => item.productId
+    (item) => item.productId,
   );
 
   const products = await Product.find({
@@ -850,7 +850,7 @@ const getSingleProduct = async (id: string) => {
       // CASE
       if (wh.type === "case") {
         const caseItems = wh.caseItems.filter(
-          (item: any) => item.productId.toString() === productId
+          (item: any) => item.productId.toString() === productId,
         );
 
         if (caseItems.length === 0) return null;
@@ -866,7 +866,7 @@ const getSingleProduct = async (id: string) => {
         const palletItems = wh.palletItems
           .map((pallet: any) => {
             const items = pallet.items.filter(
-              (item: any) => item.productId.toString() === productId
+              (item: any) => item.productId.toString() === productId,
             );
             if (items.length === 0) return null;
 
@@ -976,6 +976,39 @@ const getCaseDealsProducts = async () => {
   return formattedProducts.filter((p: any) => p.wholesaleId.length > 0);
 };
 
+const getRelatedProducts = async (productId: string) => {
+  const product = await Product.findById(productId).select("categoryId").lean();
+
+  if (!product || !product.categoryId) {
+    return [];
+  }
+  const categoryId = product.categoryId;
+
+  const relatedProducts = await Product.find({
+    _id: { $ne: productId }, 
+    categoryId: categoryId,
+    // status: "approved",           
+    // isAvailable: true,           
+  })
+    .populate({
+      path: "categoryId",
+      select: "region slug",
+    })
+    .populate({
+      path: "supplierId",
+      select: "shopName brandName",
+    })
+    .populate({
+      path: "wholesaleId",
+      match: { type: "case", isActive: true },
+      select: "-__v -createdAt -updatedAt",
+    })
+    .lean();
+
+  return relatedProducts;
+};
+
+
 const updateProductStatus = async (id: string, status: string) => {
   const isProductExist = await Product.findById(id);
   if (!isProductExist) {
@@ -985,7 +1018,7 @@ const updateProductStatus = async (id: string, status: string) => {
   await Product.findOneAndUpdate(
     { _id: isProductExist._id },
     { status },
-    { new: true }
+    { new: true },
   );
 };
 
@@ -993,7 +1026,7 @@ const updateProduct = async (
   id: string,
   payload: IProduct,
   files: Express.Multer.File[],
-  email: string
+  email: string,
 ) => {
   const user = await User.findOne({ email });
   if (!user)
@@ -1008,17 +1041,17 @@ const updateProduct = async (
     if (!isSupplierExist)
       throw new AppError(
         "You have not applied to be a supplier",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     if (isSupplierExist.status !== "approved")
       throw new AppError(
         "Your supplier application is not approved yet",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
     if (isSupplierExist.isSuspended)
       throw new AppError(
         "Your supplier account has been suspended",
-        StatusCodes.BAD_REQUEST
+        StatusCodes.BAD_REQUEST,
       );
   }
 
@@ -1040,7 +1073,6 @@ const updateProduct = async (
   const seoData = payload.seo || {
     metaTitle: payload.title || product.title,
     metaDescription: payload.shortDescription || product.shortDescription,
-    
   };
 
   const slug = payload.slug || generateShopSlug(payload.title || product.title);
@@ -1082,6 +1114,7 @@ const productService = {
   getFilterCategories,
   getTopRatedProducts,
   getCaseDealsProducts,
+  getRelatedProducts,
   updateProductStatus,
   updateProduct,
 };
