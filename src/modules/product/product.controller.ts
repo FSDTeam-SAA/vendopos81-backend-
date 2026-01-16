@@ -133,6 +133,20 @@ const getCaseDealsProducts = catchAsync(async (req, res) => {
   });
 });
 
+const getRelatedProducts = catchAsync(async (req, res) => {
+  const { id } = req.params;
+
+  const result = await productService.getRelatedProducts(id);
+
+  sendResponse(res, {
+    statusCode: StatusCodes.OK,
+    success: true,
+    message: "Related products retrieved successfully",
+    data: result,
+  });
+});
+
+
 const updateProductStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -172,6 +186,7 @@ const productController = {
   getSingleProduct,
   getTopRatedProducts,
   getCaseDealsProducts,
+  getRelatedProducts,
   updateProductStatus,
   updateProduct,
 };
