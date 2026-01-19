@@ -13,7 +13,11 @@ const app: Application = express();
 
 // Stripe webhook route FIRST — must be raw body
 // app.post('/api/v1/webhook/main', express.raw({ type: 'application/json' }), stripeWebhookHandler);
-app.post('/api/v1/webhook/connected', express.raw({ type: '*/*' }), connectedAccountWebhookHandler);
+app.post(
+  "/api/v1/onboard",
+  express.raw({ type: "*/*" }),
+  connectedAccountWebhookHandler,
+);
 
 // app.use(express.json());
 app.use(express.static("public"));
