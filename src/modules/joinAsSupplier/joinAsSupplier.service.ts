@@ -443,13 +443,7 @@ const updateSupplierStatus = async (id: string, status: string) => {
 };
 
 //! Check this one later-------------------------
-// const addRejectReason = async (id: string, reason: string) => {
-//   const supplier = await JoinAsSupplier.findById(id);
-//   if (!supplier) {
-//     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
-//   }
-
-// };
+// const addRejectReason = async (id: string, reason: string) => {}
 
 const suspendSupplier = async (id: string) => {
   const supplier = await JoinAsSupplier.findById(id);

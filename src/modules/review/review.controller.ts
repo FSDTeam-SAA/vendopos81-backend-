@@ -39,6 +39,18 @@ const getSingleReview = catchAsync(async (req, res) => {
   });
 });
 
+const getReviewByProduct = catchAsync(async (req, res) => {
+  const { id } = req.params;
+  const result = await reviewService.getReviewByProduct(id);
+
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: "Review retrieved successfully",
+    data: result,
+  });
+});
+
 const updateReviewStatus = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
@@ -66,6 +78,7 @@ const reviewController = {
   createReview,
   getAllReviews,
   getSingleReview,
+  getReviewByProduct,
   updateReviewStatus,
   deleteReview,
 };

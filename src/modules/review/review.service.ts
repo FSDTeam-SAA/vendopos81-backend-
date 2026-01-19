@@ -152,6 +152,23 @@ const getSingleReview = async (id: string) => {
   return result;
 };
 
+const getReviewByProduct = async (productId: string) => {
+  const result = await Review.find({ productId })
+    .populate({
+      path: "userId",
+      select: "firstName lastName email image",
+    })
+    .populate({
+      path: "productId",
+      select: "title productType productName supplierId",
+      populate: {
+        path: "supplierId",
+        select: "shopName", 
+      },
+    });
+  return result;
+};
+
 const updateReviewStatus = async (id: string, status: string) => {
   const review = await Review.findById(id);
   if (!review) throw new AppError("Review not found", 404);
@@ -175,7 +192,7 @@ const updateReviewStatus = async (id: string, status: string) => {
           totalRatings: newTotalRatings,
           averageRating: newAverageRating,
         },
-        { new: true }
+        { new: true },
       );
     }
   }
@@ -195,6 +212,7 @@ const reviewService = {
   createReview,
   getAllReviews,
   getSingleReview,
+  getReviewByProduct,
   updateReviewStatus,
   deleteReview,
 };
