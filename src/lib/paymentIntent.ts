@@ -20,32 +20,3 @@ export const calculateAmounts = (items: any[]) => {
 };
 
 
-
-//! ✅ Solution Options for Klarna with Stripe Integration [Recommended]
-//! If client wants to use Klarna as currency CAD. Then use below option 1.
-// Option 1: Automatic Payment Methods (Recommended)
-// export const createStripePaymentIntent = async (
-//   supplierStripeAccountId: string,
-//   total: number,
-//   adminCommission: number,
-// ) => {
-//   return stripe.paymentIntents.create({
-//     amount: Math.round(total * 100),
-//     currency: "cad",
-
-//     // ✅ Automatic payment methods handles Klarna internally
-//     automatic_payment_methods: { enabled: true },
-
-//     transfer_data: {
-//       destination: supplierStripeAccountId,
-//     },
-
-//     application_fee_amount: Math.round(adminCommission * 100),
-//   });
-// };
-
-// Stripe automatically detects valid methods for CAD
-
-// Klarna will not appear in checkout for CAD, only card/payment methods supported in CAD
-
-// এটা clean approach এবং future-proof

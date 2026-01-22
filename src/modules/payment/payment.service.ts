@@ -43,7 +43,7 @@ const createPayment = async (payload: any, userEmail: string) => {
       line_items: [
         {
           price_data: {
-            currency: "CAD",
+            currency: "cad",
             product_data: {
               name: `Order # ${order.orderUniqueId} - Supplier - ${supplier.firstName} ${supplier.lastName}`,
               //! You can add more details about the order here.
