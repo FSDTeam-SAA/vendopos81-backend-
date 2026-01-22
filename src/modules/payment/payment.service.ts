@@ -43,9 +43,10 @@ const createPayment = async (payload: any, userEmail: string) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "CAD",
             product_data: {
-              name: `Order ${order.orderUniqueId} - Supplier ${supplier.firstName} ${supplier.lastName}`,
+              name: `Order # ${order.orderUniqueId} - Supplier - ${supplier.firstName} ${supplier.lastName}`,
+              //! You can add more details about the order here.
             },
             unit_amount: Math.round(total * 100),
           },

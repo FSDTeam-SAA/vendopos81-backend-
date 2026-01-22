@@ -1,8 +1,3 @@
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-
-// -------------------- Helper Functions --------------------
 
 export const groupItemsBySupplier = (items: any[]) => {
   const map: Record<string, any[]> = {};
