@@ -11,7 +11,7 @@ import router from "./router";
 const app: Application = express();
 
 // applySecurity(app);
-
+app.set("trust proxy", 1);
 // Stripe webhook route FIRST — must be raw body
 app.post(
   "/api/v1/admin",
@@ -55,6 +55,3 @@ app.use(globalErrorHandler);
 
 export default app;
 
-function cors(): any {
-  throw new Error("Function not implemented.");
-}
