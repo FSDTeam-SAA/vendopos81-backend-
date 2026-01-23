@@ -9,135 +9,115 @@ import {
   notifySupplierAndAdmin,
   splitItemsByOwner,
 } from "../../lib/paymentIntent";
-import {
-  validateOrderForPayment,
-  validateSupplierForPayment,
-  validateUser,
-} from "../../lib/validators";
+import { validateOrderForPayment, validateUser } from "../../lib/validators";
 import Payment from "./payment.model";
+import { SupplierSettlement } from "../supplierSettlement/supplierSettlement.model";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const createPayment = async (payload: any, userEmail: string) => {
   const { orderId, successUrl, cancelUrl } = payload;
+
   const user = await validateUser(userEmail);
   const order = await validateOrderForPayment(orderId, user._id);
 
   const { supplierMap, adminItems } = splitItemsByOwner(order.items);
 
-  const payments: any[] = [];
+  /* =========================
+     🧮 CALCULATE TOTALS
+  ========================= */
 
-  /* ======================
-     🟢 ADMIN PAYMENT
-  ====================== */
-  if (adminItems.length > 0) {
-    const adminTotal = calculateTotal(adminItems);
+  const adminTotal = calculateTotal(adminItems);
+  let supplierTotal = 0;
 
-    const adminSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["klarna"],
-      billing_address_collection: "required",
-      customer_email: user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `Order #${order.orderUniqueId} - Admin Products`,
-            },
-            unit_amount: Math.round(adminTotal * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        orderId: order._id.toString(),
-        userId: user._id.toString(),
-        type: "ADMIN",
-        amount: adminTotal.toString(),
-      },
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-    });
+  const supplierSettlements: any[] = [];
 
-    await Payment.create({
-      userId: user._id,
-      orderId: order._id,
-      amount: adminTotal,
-      stripePaymentIntentId: adminSession.payment_intent as string,
-      status: "pending",
-      paymentType: "ADMIN",
-    });
-
-    payments.push({
-      type: "ADMIN",
-      sessionUrl: adminSession.url,
-      amount: adminTotal,
-    });
-  }
-
-  /* ======================
-     🟡 SUPPLIER PAYMENTS
-  ====================== */
   for (const supplierUserId of Object.keys(supplierMap)) {
     const items = supplierMap[supplierUserId];
     const { total, adminCommission } = calculateAmounts(items);
 
-    const supplier = await validateSupplierForPayment(supplierUserId);
+    supplierTotal += total;
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card", "klarna"],
-      billing_address_collection: "required",
-      customer_email: user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "cad",
-            product_data: {
-              name: `Order #${order.orderUniqueId} - Supplier ${supplier.firstName} ${supplier.lastName}`,
-            },
-            unit_amount: Math.round(total * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      payment_intent_data: {
-        application_fee_amount: Math.round(adminCommission * 100),
-        transfer_data: {
-          destination: supplier.stripeAccountId!,
-        },
-        metadata: {
-          orderId: order._id.toString(),
-          userId: user._id.toString(),
-          supplierId: supplier._id.toString(),
-          amount: total.toString(),
-        },
-      },
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl,
-    });
-
-    await Payment.create({
-      userId: user._id,
-      orderId: order._id,
-      supplierId: supplier._id,
-      stripePaymentIntentId: session.payment_intent as string,
-      amount: total,
-      status: "pending",
-      paymentType: "SUPPLIER",
-    });
-
-    payments.push({
-      type: "SUPPLIER",
-      supplierId: supplier._id,
-      sessionUrl: session.url,
+    supplierSettlements.push({
+      supplierId: supplierUserId,
       total,
       adminCommission,
+      payableToSupplier: total - adminCommission,
+      status: "pending",
     });
   }
 
-  return payments;
+  const grandTotal = adminTotal + supplierTotal;
+
+  /* =========================
+     💳 STRIPE CHECKOUT (ADMIN)
+  ========================= */
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    payment_method_types: ["klarna"],
+    billing_address_collection: "required",
+    customer_email: user.email,
+
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: `Order #${order.orderUniqueId}`,
+          },
+          unit_amount: Math.round(grandTotal * 100),
+        },
+        quantity: 1,
+      },
+    ],
+
+    metadata: {
+      orderId: order._id.toString(),
+      userId: user._id.toString(),
+      adminTotal: adminTotal.toString(),
+      supplierTotal: supplierTotal.toString(),
+      grandTotal: grandTotal.toString(),
+    },
+
+    success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: cancelUrl,
+  });
+
+  /* =========================
+     🧾 SAVE PAYMENT
+  ========================= */
+
+  await Payment.create({
+    userId: user._id,
+    orderId: order._id,
+    stripePaymentIntentId: session.payment_intent as string,
+    amount: grandTotal,
+    status: "pending",
+    paymentType: "ADMIN_FULL",
+  });
+
+  /* =========================
+     📦 SAVE SUPPLIER SETTLEMENT
+  ========================= */
+
+  for (const settlement of supplierSettlements) {
+    await SupplierSettlement.create({
+      orderId: order._id,
+      supplierId: settlement.supplierId,
+      totalAmount: settlement.total,
+      adminCommission: settlement.adminCommission,
+      payableAmount: settlement.payableToSupplier,
+      status: "PENDING",
+    });
+  }
+
+  return {
+    checkoutUrl: session.url,
+    grandTotal,
+    adminTotal,
+    supplierTotal,
+  };
 };
 
 const stripeWebhookHandler = async (sig: any, payload: Buffer) => {
