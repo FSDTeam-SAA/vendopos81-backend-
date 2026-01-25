@@ -24,7 +24,7 @@ const registerUser = async (payload: IUser) => {
   if (payload.password.length < 6) {
     throw new AppError(
       "Password must be at least 6 characters long",
-      StatusCodes.BAD_REQUEST
+      StatusCodes.BAD_REQUEST,
     );
   }
 
@@ -39,7 +39,7 @@ const registerUser = async (payload: IUser) => {
     result = (await User.findOneAndUpdate(
       { email: existingUser.email },
       { otp: hashedOtp, otpExpires },
-      { new: true }
+      { new: true },
     )) as IUser;
   } else {
     // Case 3: new user
@@ -68,13 +68,13 @@ const registerUser = async (payload: IUser) => {
   const accessToken = createToken(
     JwtToken,
     config.JWT_SECRET as string,
-    config.JWT_EXPIRES_IN as string
+    config.JWT_EXPIRES_IN as string,
   );
 
   const refreshToken = createToken(
     JwtToken,
     config.refreshTokenSecret as string,
-    config.jwtRefreshTokenExpiresIn as string
+    config.jwtRefreshTokenExpiresIn as string,
   );
 
   return {
@@ -97,7 +97,7 @@ const verifyEmail = async (email: string, payload: string) => {
   if (!existingUser)
     throw new AppError(
       "No account found with the provided credentials.",
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
 
   if (!existingUser.otp || !existingUser.otpExpires) {
@@ -121,7 +121,7 @@ const verifyEmail = async (email: string, payload: string) => {
       isVerified: true,
       $unset: { otp: "", otpExpires: "" },
     },
-    { new: true }
+    { new: true },
   ).select("username email role");
   return result;
 };
@@ -131,7 +131,7 @@ const resendOtpCode = async (email: string) => {
   if (!existingUser)
     throw new AppError(
       "No account found with the provided credentials.",
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
 
   if (existingUser.isVerified === true) {
@@ -148,7 +148,7 @@ const resendOtpCode = async (email: string) => {
       otp: hashedOtp,
       otpExpires,
     },
-    { new: true }
+    { new: true },
   ).select("username email role");
 
   await sendEmail({
@@ -159,11 +159,105 @@ const resendOtpCode = async (email: string) => {
   return result;
 };
 
-const getAllUsers = async () => {
-  const result = await User.find().select(
-    "username firstName lastName email role"
-  );
-  return result;
+const getAllUsers = async (query: any) => {
+  const page = Number(query.page) || 1;
+  const limit = Number(query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const matchStage: any = {
+    role: "customer",
+  };
+
+  if (query.isSuspended !== undefined) {
+    matchStage.isSuspended = query.isSuspended === "true";
+  }
+
+  const result = await User.aggregate([
+    {
+      $match: matchStage,
+    },
+
+    {
+      $lookup: {
+        from: "orders",
+        localField: "_id",
+        foreignField: "userId",
+        as: "orders",
+      },
+    },
+
+    {
+      $addFields: {
+        totalOrder: { $size: "$orders" },
+        totalSpent: {
+          $ifNull: [{ $sum: "$orders.totalPrice" }, 0],
+        },
+      },
+    },
+
+    {
+      $sort: { createdAt: -1 },
+    },
+
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limit },
+          {
+            $project: {
+              firstName: 1,
+              lastName: 1,
+              email: 1,
+              createdAt: 1,
+              isSuspended: 1,
+              totalOrder: 1,
+              totalSpent: 1,
+            },
+          },
+        ],
+
+        analytics: [
+          {
+            $group: {
+              _id: null,
+              totalCustomer: { $sum: 1 },
+              totalActive: {
+                $sum: {
+                  $cond: [{ $eq: ["$isSuspended", false] }, 1, 0],
+                },
+              },
+              totalSuspended: {
+                $sum: {
+                  $cond: [{ $eq: ["$isSuspended", true] }, 1, 0],
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+
+    {
+      $project: {
+        data: 1,
+        analytics: {
+          $arrayElemAt: ["$analytics", 0],
+        },
+      },
+    },
+  ]);
+
+  return {
+    users: result[0].data,
+    analytics: result[0].analytics,
+    meta: {
+      total: result[0].analytics.totalCustomer,
+      page,
+      limit,
+      totalPage: result[0].analytics.totalCustomer,
+    },
+  };
 };
 
 const getAdminId = async () => {
@@ -176,11 +270,11 @@ const getMyProfile = async (email: string) => {
   if (!existingUser)
     throw new AppError(
       "No account found with the provided credentials.",
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
 
   const result = await User.findOne({ email }).select(
-    "-password -otp -otpExpires -resetPasswordOtp -resetPasswordOtpExpires"
+    "-password -otp -otpExpires -resetPasswordOtp -resetPasswordOtpExpires",
   );
 
   return result;
@@ -191,7 +285,7 @@ const updateUserProfile = async (payload: any, email: string, file: any) => {
   if (!user)
     throw new AppError(
       "No account found with the provided credentials.",
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
 
   // eslint-disable-next-line prefer-const
@@ -211,7 +305,7 @@ const updateUserProfile = async (payload: any, email: string, file: any) => {
   const result = await User.findOneAndUpdate({ email }, updateData, {
     new: true,
   }).select(
-    "-password -otp -otpExpires -resetPasswordOtp -resetPasswordOtpExpires"
+    "-password -otp -otpExpires -resetPasswordOtp -resetPasswordOtpExpires",
   );
 
   if (file && oldImagePublicId) {
@@ -294,6 +388,7 @@ const registerDriver = async (payload: any, files: any) => {
     throw error;
   }
 };
+
 const userService = {
   registerUser,
   verifyEmail,

@@ -1,8 +1,8 @@
 import { StatusCodes } from "http-status-codes";
+import config from "../../config";
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 import userService from "./user.service";
-import config from "../../config";
 
 const registerUser = catchAsync(async (req, res) => {
   const result = await userService.registerUser(req.body);
@@ -51,13 +51,15 @@ const resendOtpCode = catchAsync(async (req, res) => {
 });
 
 const getAllUsers = catchAsync(async (req, res) => {
-  const result = await userService.getAllUsers();
+  const result = await userService.getAllUsers(req.query);
 
   sendResponse(res, {
     statusCode: StatusCodes.OK,
     success: true,
     message: "Users retrieved successfully.",
-    data: result,
+    data: result.users,
+    analytics: result.analytics,
+    meta: result.meta,
   });
 });
 
