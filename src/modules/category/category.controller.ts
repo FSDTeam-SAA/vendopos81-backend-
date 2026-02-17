@@ -36,7 +36,7 @@ const getCategories = catchAsync(async (req, res) => {
     region,
     productType,
   });
-  console.log(result);
+
 
   sendResponse(res, {
     statusCode: 200,

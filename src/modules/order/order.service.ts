@@ -179,7 +179,7 @@ const getMyOrders = async (
     .populate({ path: "userId", select: "firstName lastName email" })
     .populate({
       path: "items.productId",
-      select: "title slug images variants",
+      select: "title slug images shortDescription variants",
     })
     .populate({
       path: "items.wholesaleId",
