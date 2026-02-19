@@ -452,6 +452,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     ...buildAggregationPipeline(query, {
       filters: baseFilter,
       searchFields: ["title", "originCountry", "productName", "productType"],
+      sortFields: { createdAt: -1 },
       page: Number(query.page) || 1,
       limit: Number(query.limit) || 10,
     }),
@@ -536,7 +537,7 @@ const getAllProductForAdmin = async (query: Record<string, any>) => {
     },
   ];
 
-  const data = await Product.aggregate(pipeline);
+  const data = await Product.aggregate(pipeline)
 
   // Count total after base filter (not including dynamic filters for simplicity)
   const total = await Product.countDocuments(baseFilter);
