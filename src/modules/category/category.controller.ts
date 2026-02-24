@@ -37,7 +37,6 @@ const getCategories = catchAsync(async (req, res) => {
     productType,
   });
 
-
   sendResponse(res, {
     statusCode: 200,
     success: true,
@@ -62,7 +61,6 @@ const updateCategory = catchAsync(async (req, res) => {
   });
 });
 
-
 const getCategoryRegion = catchAsync(async (req, res) => {
   const result = await categoryService.getCategoryRegion();
 
@@ -73,10 +71,6 @@ const getCategoryRegion = catchAsync(async (req, res) => {
     data: result,
   });
 });
-
-
-
-
 
 const categoryController = {
   createCategory,
