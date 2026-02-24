@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import countries from "world-countries";
 import AppError from "../../errors/AppError";
 import { regionMap, sanitizeRegion } from "../../lib/globalType";
@@ -16,15 +17,24 @@ const createCategory = async (
 ) => {
   const regionName = payload.region.trim();
 
-  // 🔍 check if region exists
+  // 🔥 Duplicate region check (case-insensitive)
   const existingRegion = await category.findOne({
     region: { $regex: `^${regionName}$`, $options: "i" },
   });
 
-  // Helper: map files by fieldname
-  const filesMap: { [key: string]: Express.Multer.File } = {};
-  files.forEach((f) => {
-    filesMap[f.fieldname] = f;
+  if (existingRegion) {
+    throw new AppError(`Region "${regionName}" already exists`, 409);
+  }
+
+  // Region image required for new region
+  if (!regionImg) {
+    throw new AppError("Region image is required", 400);
+  }
+
+  // Map files
+  const filesMap: Record<string, Express.Multer.File> = {};
+  files.forEach((file) => {
+    filesMap[file.fieldname] = file;
   });
 
   // Upload productType images
@@ -32,11 +42,13 @@ const createCategory = async (
     payload.categories.map(async (cat, index) => {
       const fileKey = `categories[${index}][productTypeImage]`;
       const productFile = filesMap[fileKey];
-      if (!productFile)
+
+      if (!productFile) {
         throw new AppError(
           `ProductType image missing for ${cat.productType}`,
           400,
         );
+      }
 
       const uploaded = await uploadToCloudinary(
         productFile.path,
@@ -54,78 +66,37 @@ const createCategory = async (
     }),
   );
 
-  // Helper function to get countries by region
-  const getCountriesByRegion = (inputRegion: string): string[] => {
-    // First, try to map the input to a standard region using regionMap
-    const cleanInput = sanitizeRegion(inputRegion);
-    const mappedRegion = regionMap[cleanInput] || inputRegion;
-    const mappedRegionLower = mappedRegion.toLowerCase();
-
-    // Filter countries based on region or subregion
-    const countryList = countries
-      .filter((c) => {
-        const countryRegion = c.region?.toLowerCase() || "";
-        const countrySubregion = c.subregion?.toLowerCase() || "";
-
-        // Check if the country belongs to the mapped region
-        return (
-          countryRegion.includes(mappedRegionLower) ||
-          countrySubregion.includes(mappedRegionLower) ||
-          // Also check if the mapped region is part of the country's region/subregion
-          mappedRegionLower.includes(countryRegion) ||
-          mappedRegionLower.includes(countrySubregion) ||
-          // Special case for Africa/African
-          (mappedRegionLower.includes("africa") &&
-            countryRegion === "africa") ||
-          (mappedRegionLower.includes("african") && countryRegion === "africa")
-        );
-      })
-      .map((c) => c.name.common);
-
-    return countryList;
-  };
-
-  // 🟢 CASE 1: Region exists → just push new productTypes
-  if (existingRegion) {
-    for (const cat of categoriesWithImages) {
-      const alreadyProductType = existingRegion.categories.find(
-        (c) => c.productType.toLowerCase() === cat.productType.toLowerCase(),
-      );
-      if (alreadyProductType) {
-        throw new AppError(
-          `Product type '${cat.productType}' already exists in ${regionName}`,
-          409,
-        );
-      }
-      existingRegion.categories.push(cat);
-    }
-    await existingRegion.save();
-    return existingRegion;
-  }
-
-  // 🟢 CASE 2: New region → region image required
-  if (!regionImg)
-    throw new AppError("Region image is required for new region", 400);
-
+  // Upload region image
   const uploadedRegionImage = await uploadToCloudinary(
     regionImg.path,
     "region-img",
   );
 
-  const slug = generateShopSlug(regionName);
+  // Helper function
+  const getCountriesByRegion = (inputRegion: string): string[] => {
+    const cleanInput = sanitizeRegion(inputRegion);
+    const mappedRegion = regionMap[cleanInput] || inputRegion;
+    const mappedRegionLower = mappedRegion.toLowerCase();
 
-  // Get countries for the region
+    return countries
+      .filter((c) => {
+        const countryRegion = c.region?.toLowerCase() || "";
+        const countrySubregion = c.subregion?.toLowerCase() || "";
+
+        return (
+          countryRegion.includes(mappedRegionLower) ||
+          countrySubregion.includes(mappedRegionLower) ||
+          mappedRegionLower.includes(countryRegion) ||
+          mappedRegionLower.includes(countrySubregion)
+        );
+      })
+      .map((c) => c.name.common);
+  };
+
   const countryList = getCountriesByRegion(regionName);
 
-  // optional: warn if countryList empty
-  if (countryList.length === 0) {
-    console.warn(`No countries found for region: ${regionName}`);
-  }
-
-  // Create new region with productTypes
   const result = await category.create({
     region: regionName,
-    slug,
     categories: categoriesWithImages,
     country: countryList,
     regionImage: {
@@ -147,14 +118,18 @@ interface IGetCategoriesParams {
 const getCategories = async ({
   page,
   limit,
-  region,
+  region, // now this should be region _id as string
   productType,
 }: IGetCategoriesParams) => {
   const skip = (page - 1) * limit;
   const filter: Record<string, any> = {};
 
   if (region) {
-    filter.region = { $regex: new RegExp(`^${region}$`, "i") };
+    // Convert string to ObjectId
+    if (!mongoose.Types.ObjectId.isValid(region)) {
+      throw new AppError("Invalid region id", 400);
+    }
+    filter._id = new mongoose.Types.ObjectId(region);
   }
 
   const [data, total] = await Promise.all([
@@ -167,12 +142,10 @@ const getCategories = async ({
   let allProductTypes: string[] = [];
   let allProductNames: string[] = [];
 
-  // ✅ If region filter exists
   if (region && data.length > 0) {
     const regionData = data[0];
 
     if (productType) {
-      // 🎯 Filter by specific productType
       const foundCategory = regionData.categories.find(
         (c: any) => c.productType.toLowerCase() === productType.toLowerCase(),
       );
@@ -182,10 +155,7 @@ const getCategories = async ({
         allProductNames = foundCategory.productName;
       }
     } else {
-      // 🎯 Only region filter → return all productTypes + all productNames
-
       allProductTypes = regionData.categories.map((c: any) => c.productType);
-
       allProductNames = regionData.categories.flatMap(
         (c: any) => c.productName,
       );
