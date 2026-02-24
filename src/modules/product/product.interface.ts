@@ -21,7 +21,7 @@ export interface IProduct {
   categoryId?: Types.ObjectId;
   supplierId?: Types.ObjectId;
   title: string;
-  slug: string;
+  // slug: string;
   type: "single" | "case";
   shortDescription: string;
   description: string;

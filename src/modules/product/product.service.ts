@@ -1147,7 +1147,7 @@ const updateProduct = async (
     metaDescription: payload.shortDescription || product.shortDescription,
   };
 
-  const slug = payload.slug || generateShopSlug(payload.title || product.title);
+  // const slug = payload.slug || generateShopSlug(payload.title || product.title);
 
   // 7️⃣ Handle priceFrom from first variant
   let priceFrom: number | undefined = product.priceFrom;
@@ -1161,7 +1161,7 @@ const updateProduct = async (
     images: (uploadedImages.length > 0
       ? uploadedImages
       : product.images) as any,
-    slug,
+    // slug,
     seo: seoData,
     priceFrom,
     addBy: user.role === "supplier" ? "supplier" : "admin",
