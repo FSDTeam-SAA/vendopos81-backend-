@@ -405,6 +405,11 @@ const updateSupplierStatus = async (id: string, status: string) => {
 
   const user = result?.userId as any;
 
+    if (!user) {
+      return result;
+    }
+
+
   // JWT payload
   const JwtToken = {
     userId: user._id,
