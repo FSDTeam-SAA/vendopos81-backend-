@@ -467,27 +467,33 @@ const suspendSupplier = async (id: string) => {
 };
 
 const deleteSupplier = async (id: string) => {
-  const supplier = await JoinAsSupplier.findById(id);
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!supplier) {
-    throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+  try {
+    const supplier = await JoinAsSupplier.findById(id).session(session);
+
+    if (!supplier) {
+      throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
+    }
+
+    if (supplier.status !== "rejected" && !supplier.isSuspended) {
+      throw new AppError(
+        "Supplier must be rejected or suspended before deleting.",
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+
+    await JoinAsSupplier.findByIdAndDelete(id).session(session);
+    await User.findByIdAndDelete(supplier.userId).session(session);
+
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
   }
-
-  if (supplier.status !== "rejected") {
-    throw new AppError(
-      "Only rejected suppliers can be deleted.",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  if (!supplier.isSuspended) {
-    throw new AppError(
-      "Please suspend the supplier before deleting.",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  await JoinAsSupplier.findByIdAndDelete(id);
 };
 
 const updateSupplierInfo = async (

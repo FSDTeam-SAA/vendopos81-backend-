@@ -31,7 +31,7 @@ router.get(
 
 router.get(
   "/:id",
-  auth(USER_ROLE.ADMIN),
+  // auth(USER_ROLE.ADMIN),
   joinAsSupplierController.getSingleSupplier,
 );
 
@@ -59,7 +59,7 @@ router.put(
 
 router.delete(
   "/delete-supplier/:id",
-  auth(USER_ROLE.ADMIN),
+  // auth(USER_ROLE.ADMIN),
   joinAsSupplierController.deleteSupplier,
 );
 
