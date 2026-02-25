@@ -392,7 +392,7 @@ const getSingleSupplier = async (id: string) => {
 };
 
 const updateSupplierStatus = async (id: string, status: string) => {
-  const supplier = await JoinAsSupplier.findById(id);
+  const supplier = await JoinAsSupplier.findOne({ _id: id });
   if (!supplier) {
     throw new AppError("Supplier not found", StatusCodes.NOT_FOUND);
   }
