@@ -219,7 +219,7 @@ const getMyAddedProducts = async (email: string, query: any) => {
 const getAllProducts = async (query: any) => {
   const {
     search,
-    region,
+    region, // now this should be category _id string
     originCountry,
     productType,
     unit,
@@ -236,8 +236,10 @@ const getAllProducts = async (query: any) => {
   const pageNumber = Math.max(Number(page), 1);
   const pageLimit = Math.max(Number(limit), 1);
   const skip = (pageNumber - 1) * pageLimit;
+
   const pipeline: any[] = [];
 
+  // ===================== CATEGORY LOOKUP =====================
   pipeline.push({
     $lookup: {
       from: "categories",
@@ -252,6 +254,16 @@ const getAllProducts = async (query: any) => {
   pipeline.push({
     $unwind: { path: "$categoryId", preserveNullAndEmptyArrays: true },
   });
+
+  // ===================== REGION _ID FILTER =====================
+  if (region) {
+    const regionObjectId = new mongoose.Types.ObjectId(region);
+    pipeline.push({
+      $match: {
+        "categoryId._id": regionObjectId,
+      },
+    });
+  }
 
   // ===================== SUPPLIER LOOKUP =====================
   pipeline.push({
@@ -301,10 +313,8 @@ const getAllProducts = async (query: any) => {
     });
   }
 
-  // ===================== FILTERS =====================
+  // ===================== FILTER OTHER FIELDS =====================
   const match: any = {};
-
-  if (region) match["categoryId.region"] = region;
   if (originCountry) match.originCountry = originCountry;
   if (productType) match.productType = productType;
   if (isHalal !== undefined) match.isHalal = isHalal === "true";
@@ -317,9 +327,7 @@ const getAllProducts = async (query: any) => {
   // ===================== FILTER BY UNIT =====================
   if (unit) {
     pipeline.push({
-      $match: {
-        "variants.unit": unit,
-      },
+      $match: { "variants.unit": unit },
     });
   }
 
@@ -352,7 +360,7 @@ const getAllProducts = async (query: any) => {
     },
   });
 
-  // ===================== PRICE FILTER (Wholesale Aware) =====================
+  // ===================== PRICE FILTER =====================
   if (minPrice || maxPrice) {
     pipeline.push({
       $match: {
@@ -391,7 +399,7 @@ const getAllProducts = async (query: any) => {
   // ===================== EXECUTE =====================
   const products = await Product.aggregate(pipeline);
 
-  // ===================== WHOLESALE VS RETAIL FORMAT =====================
+  // ===================== FORMAT WHOLESALE DATA =====================
   const formattedProducts = products.map((product: any) => {
     const productId = product._id.toString();
 
@@ -404,7 +412,6 @@ const getAllProducts = async (query: any) => {
           if (!caseItems?.length) return null;
           return { ...wh, caseItems };
         }
-
         if (wh.type === "pallet") {
           const palletItems = wh.palletItems
             ?.map((p: any) => {
@@ -418,7 +425,6 @@ const getAllProducts = async (query: any) => {
           if (!palletItems?.length) return null;
           return { ...wh, palletItems };
         }
-
         return null;
       })
       .filter(Boolean);
