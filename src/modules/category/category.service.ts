@@ -235,17 +235,14 @@ const updateCategory = async (
       );
 
       if (existProductType) {
-        // Update existing productType
         existProductType.productName = cat.productName;
         if (cat.productImage) existProductType.productImage = cat.productImage;
       } else {
-        // Add new productType
         isCategory.categories.push(cat);
       }
     }
   }
 
-  // 🔹 Update region name and slug
   if (payload.region) {
     const isExistRegion = await category.findOne({
       _id: { $ne: id },
@@ -269,7 +266,6 @@ const updateCategory = async (
       .map((c) => c.name.common);
   }
 
-  // 🔹 Save updated category
   await isCategory.save();
 
   return isCategory;
@@ -281,12 +277,14 @@ const getCategoryRegion = async () => {
       $group: {
         _id: "$region",
         docId: { $first: "$_id" },
+        regionImage: { $first: "$regionImage" },
       },
     },
     {
       $project: {
         _id: "$docId",
         region: "$_id",
+        regionImage: 1,
       },
     },
   ]);
