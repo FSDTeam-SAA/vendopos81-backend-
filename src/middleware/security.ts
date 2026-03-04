@@ -25,9 +25,9 @@ const corsOptions = {
   origin: [
     "http://localhost:3000",
     "http://localhost:3001",
-    "https://vandopos81-website.vercel.app",
-    "https://vendopos81-dashboard.vercel.app",
-    "https://vendopos-supplier-dashboard.vercel.app",
+    "https://vendopos81-website-mu.vercel.app",
+    "https://vendopos81-dashboard-ten.vercel.app",
+    "https://vendopos-supplier-dashboard-three.vercel.app",
   ],
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
   credentials: true,
